@@ -1,26 +1,33 @@
 # apple-reminders-mcp
 
-A small MCP server that exposes macOS **Reminders.app** to any MCP-compatible client (Claude Code, Claude Desktop, etc.) via AppleScript (`osascript`).
+MCP server exposing macOS **Reminders.app** to any MCP client (Claude Code, Claude Desktop, …).
 
-> Runs on macOS only. Linux/Windows clients can still call it remotely if you proxy stdio.
+Two interchangeable backends:
+
+| Backend | Where | When to pick |
+| --- | --- | --- |
+| **AppleScript** (default) | `applescripts/*.applescript` driven by `osascript` | Zero build step. Works on any macOS. |
+| **EventKit** | `eventkit/Reminders.swift` compiled to `eventkit/reminders` | Native fidelity: recurrence rules, alarms, faster bulk reads. |
+
+The Python server (`server.py`) auto-detects which backend to use — if the compiled `eventkit/reminders` exists it is preferred; otherwise it falls back to AppleScript. Override with `APPLE_REMINDERS_BACKEND=applescript` or `=eventkit`.
 
 ## Tools
 
-| Tool | Purpose |
+| Tool | Notes |
 | --- | --- |
-| `list_lists` | Enumerate every Reminders list. |
-| `list_reminders` | Read reminders, with filters: `list_name`, `include_completed`, `query`, `due_before`. |
-| `get_reminder` | Fetch one reminder by ID. |
-| `create_reminder` | Create a reminder with title, list, notes, due date, priority. |
-| `complete_reminder` | Mark as done. |
-| `update_reminder` | Patch title / notes / due / priority. |
-| `delete_reminder` | Permanent delete. |
+| `list_lists` | All Reminders lists with `id` + `name`. |
+| `list_reminders` | Filters: `list_name`, `include_completed`, `query`, `due_before` (ISO). |
+| `get_reminder` | By `id`. |
+| `create_reminder` | `title` (req), `list_name`, `notes`, `due` (ISO), `priority` (none/low/medium/high). |
+| `complete_reminder` | Mark done. |
+| `update_reminder` | Patch any subset. |
+| `delete_reminder` | Irreversible. |
 
-Returned reminder shape:
+Reminder shape returned:
 
 ```json
 {
-  "id": "x-coredata://...",
+  "id": "x-coredata://…",
   "title": "Buy milk",
   "notes": "2%",
   "completed": false,
@@ -30,50 +37,68 @@ Returned reminder shape:
 }
 ```
 
-## Install (on your Mac)
+EventKit backend additionally returns `has_recurrence`, `alarm_count`, and `completed_at` when applicable.
+
+## Install — AppleScript backend (no compile)
 
 ```bash
-git clone <this repo> && cd apple-reminders-mcp
+git clone <repo> && cd apple-reminders-mcp
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
 ```
 
-The first run will trigger macOS's **Reminders access** prompt. Grant it — you can revoke later in *System Settings → Privacy & Security → Reminders*.
+First run triggers macOS's **Reminders access** prompt. Approve it once.
+
+Smoke test a script directly:
+
+```bash
+osascript applescripts/list_lists.applescript
+```
+
+## Install — EventKit backend (richer)
+
+```bash
+cd eventkit && ./build.sh        # requires Xcode CLI tools (`xcode-select --install`)
+```
+
+This produces `eventkit/reminders`. First invocation prompts for Reminders full access. The `Info.plist` next to the binary supplies `NSRemindersUsageDescription`, which macOS requires.
+
+Try it:
+
+```bash
+./eventkit/reminders list-lists
+./eventkit/reminders list-reminders --list "Personal"
+./eventkit/reminders create-reminder --title "Test" --due 2026-05-12T18:00:00
+```
 
 ## Wire into Claude Code
 
-Add to `~/.claude/settings.json` (or your project's `.claude/settings.json`):
+`~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "apple-reminders": {
       "command": "/absolute/path/to/.venv/bin/python",
-      "args": ["/absolute/path/to/apple-reminders-mcp/server.py"]
+      "args": ["/absolute/path/to/apple-reminders-mcp/server.py"],
+      "env": { "APPLE_REMINDERS_BACKEND": "auto" }
     }
   }
 }
 ```
 
-Restart Claude Code. The seven tools above will be available.
+## Architecture
 
-## Wire into Claude Desktop
+```
+client (Claude) ──stdio──▶ server.py ──┬─▶ osascript ──▶ applescripts/*.applescript ──▶ Reminders.app
+                                       └─▶ eventkit/reminders ──▶ EventKit framework ──▶ Reminders DB
+```
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json` with the same `mcpServers` block.
+Each AppleScript is a thin, callable wrapper that accepts positional args (`on run argv`) and emits records separated by U+001E with U+001F unit separators — `server.py` parses these. The EventKit CLI emits JSON directly.
 
 ## Caveats
 
-- AppleScript date parsing uses your system locale; the server normalizes to ISO 8601 best-effort. If you see unparsed strings, file an issue with your locale.
-- Location-based triggers and recurrence are **not** exposed — AppleScript's surface is limited. For those, a Swift/EventKit bridge would be needed.
-- This server was authored on Linux and not executed end-to-end on macOS. Treat the first run as a smoke test; the AppleScript snippets are conservative but date-mutation in particular benefits from real-machine verification.
-
-## Use cases
-
-See the conversation that spawned this repo, or the short list:
-
-- Morning briefing of items due today
-- Weekly review (open vs. completed, oldest open)
-- Cross-syncing flagged reminders into GitHub issues, Notion, or Linear
-- Conflict-checking reminders against calendar events
-- Bulk reschedule of overdue items
-- Natural-language create: "remind me to call Sam tomorrow at 3pm on the Work list"
+- AppleScript date strings are locale-formatted. `server.py` tries multiple parse formats; if you see raw strings come through, file an issue with your locale + sample.
+- AppleScript backend cannot read recurrence rules or alarms. Use EventKit for those.
+- Bulk reads via AppleScript are linear over reminders — EventKit is faster for thousands of items.
+- This code was authored on Linux and has not been executed end-to-end on macOS. Treat first runs as smoke tests.

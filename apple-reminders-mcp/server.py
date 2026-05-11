@@ -1,20 +1,32 @@
 """MCP server for Apple Reminders on macOS.
 
-Communicates with the Reminders.app via `osascript`. Must run on macOS with
-Reminders access granted to the terminal/process invoking it.
+Two backends:
+
+* **AppleScript** (default) — invokes `osascript` against the .applescript files
+  in ./applescripts/. Works out of the box on any macOS.
+* **EventKit** — if `eventkit/reminders` (compiled Swift CLI) exists and is
+  executable, it is used instead. Richer metadata (recurrence, alarms).
+
+Select with env var: APPLE_REMINDERS_BACKEND=applescript|eventkit (default: auto).
 """
 from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
+
+ROOT = Path(__file__).resolve().parent
+APPLESCRIPTS = ROOT / "applescripts"
+EVENTKIT_BIN = ROOT / "eventkit" / "reminders"
 
 RS = "\x1e"
 US = "\x1f"
@@ -23,18 +35,32 @@ PRIORITY_MAP = {0: "none", 1: "high", 5: "medium", 9: "low"}
 PRIORITY_REVERSE = {"none": 0, "high": 1, "medium": 5, "low": 9}
 
 
-def _osascript(script: str) -> str:
+def _backend() -> str:
+    choice = os.environ.get("APPLE_REMINDERS_BACKEND", "auto").lower()
+    if choice == "eventkit":
+        return "eventkit"
+    if choice == "applescript":
+        return "applescript"
+    return "eventkit" if EVENTKIT_BIN.exists() and os.access(EVENTKIT_BIN, os.X_OK) else "applescript"
+
+
+# ---------- AppleScript backend ----------
+
+def _run_applescript(name: str, *args: str) -> str:
+    script = APPLESCRIPTS / f"{name}.applescript"
+    if not script.exists():
+        raise FileNotFoundError(f"missing applescript: {script}")
     proc = subprocess.run(
-        ["osascript", "-e", script],
+        ["osascript", str(script), *args],
         capture_output=True,
         text=True,
     )
     if proc.returncode != 0:
-        raise RuntimeError(f"osascript failed: {proc.stderr.strip()}")
+        raise RuntimeError(f"osascript {name} failed: {proc.stderr.strip()}")
     return proc.stdout.rstrip("\n")
 
 
-def _parse_records(raw: str, fields: list[str]) -> list[dict[str, Any]]:
+def _parse_records(raw: str, fields: list[str]) -> list[dict[str, str]]:
     if not raw:
         return []
     out = []
@@ -52,7 +78,11 @@ def _parse_records(raw: str, fields: list[str]) -> list[dict[str, Any]]:
 def _to_iso(applescript_date: str) -> str | None:
     if not applescript_date or applescript_date == "missing value":
         return None
-    for fmt in ("%A, %B %d, %Y at %I:%M:%S %p", "%Y-%m-%d %H:%M:%S"):
+    for fmt in (
+        "%A, %B %d, %Y at %I:%M:%S %p",
+        "%A, %B %d, %Y at %H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+    ):
         try:
             return datetime.strptime(applescript_date, fmt).isoformat()
         except ValueError:
@@ -60,214 +90,41 @@ def _to_iso(applescript_date: str) -> str | None:
     return applescript_date
 
 
-def _escape(s: str) -> str:
-    return s.replace("\\", "\\\\").replace('"', '\\"')
-
-
-# ---------- AppleScript snippets ----------
-
-LIST_LISTS = f'''
-tell application "Reminders"
-  set out to ""
-  repeat with L in lists
-    set out to out & (id of L) & "{US}" & (name of L) & "{RS}"
-  end repeat
-  return out
-end tell
-'''
-
-
-def list_reminders_script(
-    list_name: str | None,
-    include_completed: bool,
-) -> str:
-    target = (
-        f'reminders of list "{_escape(list_name)}"'
-        if list_name
-        else "reminders"
-    )
-    completed_filter = "" if include_completed else " whose completed is false"
-    return f'''
-tell application "Reminders"
-  set out to ""
-  set theItems to ({target}{completed_filter})
-  repeat with r in theItems
-    set rid to id of r
-    set rname to name of r
-    try
-      set rbody to body of r
-    on error
-      set rbody to ""
-    end try
-    set rdone to (completed of r) as text
-    try
-      set rdue to (due date of r) as text
-    on error
-      set rdue to ""
-    end try
-    try
-      set rprio to (priority of r) as text
-    on error
-      set rprio to "0"
-    end try
-    set rlist to name of container of r
-    set out to out & rid & "{US}" & rname & "{US}" & rbody & "{US}" & rdone & "{US}" & rdue & "{US}" & rprio & "{US}" & rlist & "{RS}"
-  end repeat
-  return out
-end tell
-'''
-
-
-def get_reminder_script(reminder_id: str) -> str:
-    return f'''
-tell application "Reminders"
-  set r to first reminder whose id is "{_escape(reminder_id)}"
-  set rname to name of r
-  try
-    set rbody to body of r
-  on error
-    set rbody to ""
-  end try
-  set rdone to (completed of r) as text
-  try
-    set rdue to (due date of r) as text
-  on error
-    set rdue to ""
-  end try
-  try
-    set rprio to (priority of r) as text
-  on error
-    set rprio to "0"
-  end try
-  set rlist to name of container of r
-  return (id of r) & "{US}" & rname & "{US}" & rbody & "{US}" & rdone & "{US}" & rdue & "{US}" & rprio & "{US}" & rlist
-end tell
-'''
-
-
-def create_reminder_script(
-    title: str,
-    list_name: str | None,
-    body: str | None,
-    due: datetime | None,
-    priority: str,
-) -> str:
-    props = [f'name:"{_escape(title)}"']
-    if body:
-        props.append(f'body:"{_escape(body)}"')
-    if priority in PRIORITY_REVERSE:
-        props.append(f"priority:{PRIORITY_REVERSE[priority]}")
-    props_str = ", ".join(props)
-
-    due_block = ""
-    if due is not None:
-        due_block = f'''
-  set d to current date
-  set year of d to {due.year}
-  set month of d to {due.month}
-  set day of d to {due.day}
-  set hours of d to {due.hour}
-  set minutes of d to {due.minute}
-  set seconds of d to {due.second}
-  set due date of newRem to d
-'''
-
-    container = (
-        f'list "{_escape(list_name)}"' if list_name else "default list"
-    )
-    return f'''
-tell application "Reminders"
-  set newRem to make new reminder at {container} with properties {{{props_str}}}
-  {due_block}
-  return id of newRem
-end tell
-'''
-
-
-def complete_reminder_script(reminder_id: str) -> str:
-    return f'''
-tell application "Reminders"
-  set r to first reminder whose id is "{_escape(reminder_id)}"
-  set completed of r to true
-  return "ok"
-end tell
-'''
-
-
-def update_reminder_script(
-    reminder_id: str,
-    title: str | None,
-    body: str | None,
-    due: datetime | None,
-    priority: str | None,
-) -> str:
-    setters = []
-    if title is not None:
-        setters.append(f'set name of r to "{_escape(title)}"')
-    if body is not None:
-        setters.append(f'set body of r to "{_escape(body)}"')
-    if priority in PRIORITY_REVERSE:
-        setters.append(f"set priority of r to {PRIORITY_REVERSE[priority]}")
-    due_block = ""
-    if due is not None:
-        due_block = f'''
-  set d to current date
-  set year of d to {due.year}
-  set month of d to {due.month}
-  set day of d to {due.day}
-  set hours of d to {due.hour}
-  set minutes of d to {due.minute}
-  set seconds of d to {due.second}
-  set due date of r to d
-'''
-    body_block = "\n  ".join(setters)
-    return f'''
-tell application "Reminders"
-  set r to first reminder whose id is "{_escape(reminder_id)}"
-  {body_block}
-  {due_block}
-  return "ok"
-end tell
-'''
-
-
-def delete_reminder_script(reminder_id: str) -> str:
-    return f'''
-tell application "Reminders"
-  delete (first reminder whose id is "{_escape(reminder_id)}")
-  return "ok"
-end tell
-'''
-
-
-# ---------- Tool implementations ----------
-
-def _format_reminder(rec: dict[str, str]) -> dict[str, Any]:
+def _format_applescript_reminder(rec: dict[str, str]) -> dict[str, Any]:
+    prio_raw = rec.get("priority") or "0"
+    try:
+        prio_int = int(prio_raw)
+    except ValueError:
+        prio_int = 0
     return {
         "id": rec.get("id", ""),
         "title": rec.get("title", ""),
         "notes": rec.get("body", ""),
         "completed": rec.get("done", "false") == "true",
         "due": _to_iso(rec.get("due", "")),
-        "priority": PRIORITY_MAP.get(int(rec.get("priority") or 0), "none"),
+        "priority": PRIORITY_MAP.get(prio_int, "none"),
         "list": rec.get("list", ""),
     }
 
 
-def tool_list_lists() -> list[dict[str, str]]:
-    raw = _osascript(LIST_LISTS)
+def as_list_lists() -> list[dict[str, str]]:
+    raw = _run_applescript("list_lists")
     return _parse_records(raw, ["id", "name"])
 
 
-def tool_list_reminders(
+def as_list_reminders(
     list_name: str | None,
     include_completed: bool,
     query: str | None,
     due_before: str | None,
 ) -> list[dict[str, Any]]:
-    raw = _osascript(list_reminders_script(list_name, include_completed))
+    raw = _run_applescript(
+        "list_reminders",
+        list_name or "",
+        "true" if include_completed else "false",
+    )
     fields = ["id", "title", "body", "done", "due", "priority", "list"]
-    items = [_format_reminder(r) for r in _parse_records(raw, fields)]
+    items = [_format_applescript_reminder(r) for r in _parse_records(raw, fields)]
     if query:
         q = query.lower()
         items = [
@@ -283,51 +140,198 @@ def tool_list_reminders(
     return items
 
 
-def tool_get_reminder(reminder_id: str) -> dict[str, Any]:
-    raw = _osascript(get_reminder_script(reminder_id))
+def as_get_reminder(reminder_id: str) -> dict[str, Any]:
+    raw = _run_applescript("get_reminder", reminder_id)
     fields = ["id", "title", "body", "done", "due", "priority", "list"]
     recs = _parse_records(raw + RS, fields)
     if not recs:
         raise ValueError(f"reminder {reminder_id} not found")
-    return _format_reminder(recs[0])
+    return _format_applescript_reminder(recs[0])
 
 
-def tool_create_reminder(
+def as_create_reminder(
     title: str,
     list_name: str | None,
     notes: str | None,
     due: str | None,
     priority: str,
 ) -> dict[str, str]:
-    due_dt = datetime.fromisoformat(due) if due else None
-    new_id = _osascript(
-        create_reminder_script(title, list_name, notes, due_dt, priority)
-    )
+    args = [
+        title,
+        list_name or "",
+        notes or "",
+        due or "",
+        str(PRIORITY_REVERSE.get(priority, 0)),
+    ]
+    new_id = _run_applescript("create_reminder", *args)
     return {"id": new_id, "status": "created"}
 
 
-def tool_complete_reminder(reminder_id: str) -> dict[str, str]:
-    _osascript(complete_reminder_script(reminder_id))
+def as_complete_reminder(reminder_id: str) -> dict[str, str]:
+    _run_applescript("complete_reminder", reminder_id)
     return {"id": reminder_id, "status": "completed"}
 
 
-def tool_update_reminder(
+def as_update_reminder(
     reminder_id: str,
     title: str | None,
     notes: str | None,
     due: str | None,
     priority: str | None,
 ) -> dict[str, str]:
-    due_dt = datetime.fromisoformat(due) if due else None
-    _osascript(
-        update_reminder_script(reminder_id, title, notes, due_dt, priority)
-    )
+    args = [
+        reminder_id,
+        title if title is not None else "-",
+        notes if notes is not None else "-",
+        due if due is not None else "-",
+        str(PRIORITY_REVERSE[priority]) if priority in PRIORITY_REVERSE else "-",
+    ]
+    _run_applescript("update_reminder", *args)
     return {"id": reminder_id, "status": "updated"}
 
 
-def tool_delete_reminder(reminder_id: str) -> dict[str, str]:
-    _osascript(delete_reminder_script(reminder_id))
+def as_delete_reminder(reminder_id: str) -> dict[str, str]:
+    _run_applescript("delete_reminder", reminder_id)
     return {"id": reminder_id, "status": "deleted"}
+
+
+# ---------- EventKit backend ----------
+
+def _run_eventkit(*args: str) -> Any:
+    proc = subprocess.run(
+        [str(EVENTKIT_BIN), *args],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"eventkit failed: {proc.stderr.strip()}")
+    return json.loads(proc.stdout) if proc.stdout.strip() else None
+
+
+def ek_list_lists() -> Any:
+    return _run_eventkit("list-lists")
+
+
+def ek_list_reminders(
+    list_name: str | None,
+    include_completed: bool,
+    query: str | None,
+    due_before: str | None,
+) -> Any:
+    args = ["list-reminders"]
+    if list_name:
+        args += ["--list", list_name]
+    if include_completed:
+        args.append("--include-completed")
+    if query:
+        args += ["--query", query]
+    if due_before:
+        args += ["--due-before", due_before]
+    return _run_eventkit(*args)
+
+
+def ek_get_reminder(reminder_id: str) -> Any:
+    return _run_eventkit("get-reminder", reminder_id)
+
+
+def ek_create_reminder(
+    title: str,
+    list_name: str | None,
+    notes: str | None,
+    due: str | None,
+    priority: str,
+) -> Any:
+    args = ["create-reminder", "--title", title, "--priority", priority]
+    if list_name: args += ["--list", list_name]
+    if notes:     args += ["--notes", notes]
+    if due:       args += ["--due", due]
+    return _run_eventkit(*args)
+
+
+def ek_complete_reminder(reminder_id: str) -> Any:
+    return _run_eventkit("complete-reminder", reminder_id)
+
+
+def ek_update_reminder(
+    reminder_id: str,
+    title: str | None,
+    notes: str | None,
+    due: str | None,
+    priority: str | None,
+) -> Any:
+    args = ["update-reminder", reminder_id]
+    if title is not None:    args += ["--title", title]
+    if notes is not None:    args += ["--notes", notes]
+    if due is not None:      args += ["--due", due]
+    if priority is not None: args += ["--priority", priority]
+    return _run_eventkit(*args)
+
+
+def ek_delete_reminder(reminder_id: str) -> Any:
+    return _run_eventkit("delete-reminder", reminder_id)
+
+
+# ---------- Dispatch ----------
+
+def dispatch(name: str, arguments: dict[str, Any]) -> Any:
+    backend = _backend()
+    if backend == "eventkit":
+        table = {
+            "list_lists":        lambda: ek_list_lists(),
+            "list_reminders":    lambda: ek_list_reminders(
+                arguments.get("list_name"),
+                arguments.get("include_completed", False),
+                arguments.get("query"),
+                arguments.get("due_before"),
+            ),
+            "get_reminder":      lambda: ek_get_reminder(arguments["id"]),
+            "create_reminder":   lambda: ek_create_reminder(
+                arguments["title"],
+                arguments.get("list_name"),
+                arguments.get("notes"),
+                arguments.get("due"),
+                arguments.get("priority", "none"),
+            ),
+            "complete_reminder": lambda: ek_complete_reminder(arguments["id"]),
+            "update_reminder":   lambda: ek_update_reminder(
+                arguments["id"],
+                arguments.get("title"),
+                arguments.get("notes"),
+                arguments.get("due"),
+                arguments.get("priority"),
+            ),
+            "delete_reminder":   lambda: ek_delete_reminder(arguments["id"]),
+        }
+    else:
+        table = {
+            "list_lists":        lambda: as_list_lists(),
+            "list_reminders":    lambda: as_list_reminders(
+                arguments.get("list_name"),
+                arguments.get("include_completed", False),
+                arguments.get("query"),
+                arguments.get("due_before"),
+            ),
+            "get_reminder":      lambda: as_get_reminder(arguments["id"]),
+            "create_reminder":   lambda: as_create_reminder(
+                arguments["title"],
+                arguments.get("list_name"),
+                arguments.get("notes"),
+                arguments.get("due"),
+                arguments.get("priority", "none"),
+            ),
+            "complete_reminder": lambda: as_complete_reminder(arguments["id"]),
+            "update_reminder":   lambda: as_update_reminder(
+                arguments["id"],
+                arguments.get("title"),
+                arguments.get("notes"),
+                arguments.get("due"),
+                arguments.get("priority"),
+            ),
+            "delete_reminder":   lambda: as_delete_reminder(arguments["id"]),
+        }
+    if name not in table:
+        raise ValueError(f"unknown tool: {name}")
+    return table[name]()
 
 
 # ---------- MCP wiring ----------
@@ -344,7 +348,7 @@ TOOLS: list[Tool] = [
         name="list_reminders",
         description=(
             "List reminders, optionally filtered by list name, completion state, "
-            "keyword in title/notes, and due-before cutoff."
+            "keyword in title/notes, and a due-before cutoff (ISO 8601)."
         ),
         inputSchema={
             "type": "object",
@@ -354,7 +358,7 @@ TOOLS: list[Tool] = [
                 "query": {"type": "string"},
                 "due_before": {
                     "type": "string",
-                    "description": "ISO 8601 datetime; only items due before this are returned.",
+                    "description": "ISO 8601 datetime; only items due strictly before this are returned.",
                 },
             },
         },
@@ -434,40 +438,8 @@ async def list_tools() -> list[Tool]:
 @server.call_tool()
 async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
     try:
-        if name == "list_lists":
-            result = tool_list_lists()
-        elif name == "list_reminders":
-            result = tool_list_reminders(
-                arguments.get("list_name"),
-                arguments.get("include_completed", False),
-                arguments.get("query"),
-                arguments.get("due_before"),
-            )
-        elif name == "get_reminder":
-            result = tool_get_reminder(arguments["id"])
-        elif name == "create_reminder":
-            result = tool_create_reminder(
-                arguments["title"],
-                arguments.get("list_name"),
-                arguments.get("notes"),
-                arguments.get("due"),
-                arguments.get("priority", "none"),
-            )
-        elif name == "complete_reminder":
-            result = tool_complete_reminder(arguments["id"])
-        elif name == "update_reminder":
-            result = tool_update_reminder(
-                arguments["id"],
-                arguments.get("title"),
-                arguments.get("notes"),
-                arguments.get("due"),
-                arguments.get("priority"),
-            )
-        elif name == "delete_reminder":
-            result = tool_delete_reminder(arguments["id"])
-        else:
-            raise ValueError(f"unknown tool: {name}")
-        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+        result = dispatch(name, arguments)
+        return [TextContent(type="text", text=json.dumps(result, indent=2, default=str))]
     except Exception as e:
         return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
 
@@ -480,7 +452,7 @@ async def _run() -> None:
 def main() -> None:
     if sys.platform != "darwin":
         print(
-            "apple-reminders-mcp must run on macOS (uses osascript).",
+            "apple-reminders-mcp must run on macOS (uses osascript / EventKit).",
             file=sys.stderr,
         )
         sys.exit(1)
