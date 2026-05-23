@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-base: #0a0a0b;
+  --color-bg-surface: #141416;
+  --color-bg-elevated: #1c1c1f;
+  --color-bg-overlay: rgba(10, 10, 11, 0.75);
+
+  --color-fg-primary: #f5f5f4;
+  --color-fg-secondary: #a8a8a6;
+  --color-fg-muted: #737370;
+  --color-fg-inverted: #0a0a0b;
+
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+
+  --color-accent: #e8b14f;
+  --color-accent-hover: #f1c36a;
+  --color-accent-active: #d49c36;
+  --color-accent-foreground: #0a0a0b;
+
+  --color-danger: #e5484d;
+  --color-success: #46a758;
+
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    background-color: var(--color-bg-base);
+    color: var(--color-fg-primary);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  * {
+    border-color: var(--color-border-subtle);
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-accent-foreground);
+  }
+
+  .font-serif {
+    font-family: var(--font-serif);
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .scroll-snap-x {
+    scroll-snap-type: x mandatory;
+  }
+  .scroll-snap-start {
+    scroll-snap-align: start;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .gradient-bottom {
+    background: linear-gradient(
+      to top,
+      var(--color-bg-base) 0%,
+      rgba(10, 10, 11, 0.7) 35%,
+      transparent 100%
+    );
+  }
+  .gradient-overlay {
+    background: linear-gradient(
+      to top,
+      var(--color-bg-base) 0%,
+      rgba(10, 10, 11, 0.6) 40%,
+      rgba(10, 10, 11, 0.2) 70%,
+      transparent 100%
+    );
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}

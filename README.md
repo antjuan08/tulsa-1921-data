@@ -57,3 +57,9 @@ tulsa-data@nytimes.com.
 ## Contributors
 
 By Yuliya Parshina-Kottas, Anjali Singhvi, Audra D.S. Burch, Troy Griggs, Mika Gröndahl, Lingdong Huang, Tim Wallace, Jeremy White and Josh Williams. Additional reporting, development and production by Matt Craig, Alain Delaquérière, Lazaro Gamio, Jon Huang, Blacki Migliozzi, Jugal Patel, Bedel Saget and Alison Saldanha.
+
+---
+
+## Also in this repo: `learning-hub/` — OTT Online Learning Platform
+
+A separate project — a Masterclass-style streaming learning hub — lives in [`learning-hub/`](./learning-hub). The Tulsa data above is unrelated and remains untouched. See [`learning-hub/README.md`](./learning-hub/README.md) for setup, stack, and run instructions.
