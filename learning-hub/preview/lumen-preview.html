@@ -1,0 +1,1643 @@
+<title>PastorCast preview</title>
+<style>
+  /*
+    PastorCast — static visual preview.
+    Palette, type, and visual system from the PastorCast brand identity
+    guidelines: deep forest ground, warm gold accent, Georgia-style
+    serif display, gold left-accent bar on every card, gold top rule,
+    no rounded corners on dark surfaces.
+  */
+  :root {
+    color-scheme: dark;
+
+    /* Primary */
+    --ink: #0A2318;          /* Deep Forest — primary bg */
+    --charcoal: #0D2B1E;     /* Forest Mid — card bg */
+    --slate: #0F3226;        /* Forest Card — surface */
+    --accent-bg: #163B2A;    /* Forest Accent — footer / hover */
+    --bone: #FFFFFF;         /* White — primary text */
+    --sage: #C8D8C0;         /* Sage Body — body text on dark green */
+    --sage-mute: #7BA080;    /* Muted Sage — captions / dividers text */
+
+    /* Gold system */
+    --gilt: #C9A55A;         /* Brand Gold — accent */
+    --gilt-hover: #E2C07A;   /* Gold Light — highlight */
+    --gilt-active: #9A7A38;  /* Gold Dark */
+    --on-gilt: #0A2318;      /* Forest as gold-fg */
+
+    /* Rules & glass */
+    --rule: #1A4A34;         /* Border Green */
+    --rule-strong: #2A6547;  /* Deeper border */
+    --glass: rgba(10, 35, 24, 0.78);
+
+    /* Type */
+    --font-display: "Cormorant Garamond", Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+    /* Track */
+    --track: 0.32em;
+    --track-tight: 0.16em;
+
+    /* Corners — NO rounded corners on dark BG (per brand guide).
+       Only pills (chips, plan pill) use a full 999px radius, applied inline. */
+    --r-flat: 0px;
+
+    /* Layout */
+    --page: 1440px;
+    --gutter: 40px;
+    --accent-bar: 7px;       /* Signature gold left-accent bar */
+    --top-rule: 4px;         /* Signature gold top rule */
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--ink);
+    color: var(--bone);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+  img { display: block; max-width: 100%; }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  ::selection { background: var(--gilt); color: var(--on-gilt); }
+
+  /* ── Gold top rule (brand signature) ─────────────────────────────────── */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: var(--top-rule);
+    background: linear-gradient(90deg, var(--gilt-active), var(--gilt) 30%, var(--gilt-hover) 55%, var(--gilt) 75%, var(--gilt-active));
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  /* ── Preview strip ──────────────────────────────────────────────────── */
+  .preview-strip {
+    position: sticky;
+    top: var(--top-rule);
+    z-index: 60;
+    background: var(--accent-bg);
+    border-bottom: 1px solid var(--rule);
+    color: var(--sage);
+    font-size: 11px;
+    letter-spacing: var(--track-tight);
+    text-transform: uppercase;
+  }
+  .preview-strip__inner {
+    max-width: var(--page);
+    margin: 0 auto;
+    padding: 10px var(--gutter);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  .preview-strip__label { color: var(--gilt); display: inline-flex; align-items: center; gap: 10px; font-weight: 700; }
+  .preview-strip__label::before {
+    content: "";
+    width: 6px; height: 6px;
+    background: var(--gilt);
+    box-shadow: 0 0 0 3px rgba(201, 165, 90, 0.18);
+  }
+  .preview-strip a { color: var(--bone); border-bottom: 1px solid var(--rule-strong); padding-bottom: 1px; }
+  .preview-strip a:hover { color: var(--gilt); }
+
+  /* ── Wordmark (text mark rebuilt in CSS: spaced serif caps in gold) ─── */
+  .wordmark {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 20px;
+    letter-spacing: 0.42em;
+    color: var(--gilt);
+    text-transform: uppercase;
+    display: inline-block;
+    position: relative;
+    padding-bottom: 6px;
+    padding-right: 0.4em; /* absorb final letter-spacing */
+  }
+  .wordmark::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0.4em; bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--gilt-active), var(--gilt), var(--gilt-hover), var(--gilt), var(--gilt-active));
+  }
+  .wordmark--sm { font-size: 15px; letter-spacing: 0.36em; padding-bottom: 4px; }
+
+  /* P icon — a large serif P with a horizontal swash. Rebuilt as a tiny
+     inline SVG so it scales cleanly wherever used (favicon, watermark). */
+  .p-mark {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  /* ── Site header ────────────────────────────────────────────────────── */
+  .site-header {
+    position: sticky;
+    top: calc(var(--top-rule) + 33px);
+    z-index: 55;
+    background: var(--glass);
+    border-bottom: 1px solid var(--rule);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .site-header__inner {
+    max-width: var(--page);
+    margin: 0 auto;
+    padding: 18px var(--gutter);
+    display: flex;
+    align-items: center;
+    gap: 44px;
+  }
+  .site-nav {
+    display: flex;
+    gap: 32px;
+    font-size: 13px;
+    color: var(--sage);
+    margin-right: auto;
+    letter-spacing: 0.02em;
+  }
+  .site-nav a { position: relative; padding: 4px 0; }
+  .site-nav a:hover { color: var(--bone); }
+  .site-nav a.is-active { color: var(--bone); }
+  .site-nav a.is-active::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -6px;
+    height: 2px;
+    background: var(--gilt);
+  }
+  .site-header__auth { display: flex; gap: 10px; align-items: center; }
+
+  /* ── Buttons ─────────────────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 44px;
+    padding: 0 24px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: var(--track-tight);
+    text-transform: uppercase;
+    transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+  }
+  .btn--primary { background: var(--gilt); color: var(--on-gilt); }
+  .btn--primary:hover { background: var(--gilt-hover); }
+  .btn--secondary { background: transparent; color: var(--bone); border: 1px solid var(--rule-strong); }
+  .btn--secondary:hover { background: var(--accent-bg); border-color: var(--gilt); color: var(--gilt); }
+  .btn--ghost { color: var(--sage); text-transform: none; font-weight: 400; letter-spacing: 0; }
+  .btn--ghost:hover { color: var(--gilt); }
+  .btn--lg { height: 54px; padding: 0 30px; font-size: 13px; }
+  .btn__glyph { width: 16px; height: 16px; display: inline-block; }
+
+  /* ── Eyebrows, labels ────────────────────────────────────────────────── */
+  .eyebrow {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gilt);
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .eyebrow--sage { color: var(--sage); }
+  .kicker {
+    font-size: 10px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    color: var(--sage-mute);
+    line-height: 1;
+  }
+
+  /* ── Section chrome ──────────────────────────────────────────────────── */
+  main { display: flex; flex-direction: column; }
+  .screen {
+    position: relative;
+    padding-block: 96px;
+  }
+  .screen__marker {
+    max-width: var(--page);
+    margin: 0 auto 56px;
+    padding: 0 var(--gutter);
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    color: var(--sage-mute);
+    font-size: 10px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .screen__marker::before {
+    content: "";
+    display: block;
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+    max-width: 120px;
+  }
+  .screen__marker strong { color: var(--gilt); font-weight: 700; }
+  .container { max-width: var(--page); margin: 0 auto; padding: 0 var(--gutter); }
+
+  /* ── LANDING: Hero (with P watermark behind text) ────────────────────── */
+  .hero {
+    position: relative;
+    min-height: 82vh;
+    max-height: 900px;
+    display: grid;
+    grid-template-columns: minmax(0, 44fr) minmax(0, 56fr);
+    isolation: isolate;
+    overflow: hidden;
+    background: var(--ink);
+  }
+  .hero__watermark {
+    position: absolute;
+    left: -80px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 640px;
+    height: 640px;
+    opacity: 0.06;
+    color: var(--gilt);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .hero__text {
+    padding: 88px 56px 96px var(--gutter);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    max-width: 680px;
+    position: relative;
+    z-index: 2;
+  }
+  .hero__eyebrow { margin-bottom: 22px; }
+  .hero__byline {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 17px;
+    color: var(--sage);
+    margin: 0 0 14px 0;
+  }
+  .hero__byline strong { color: var(--bone); font-weight: 500; font-style: normal; }
+  .hero__title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(52px, 6.6vw, 104px);
+    line-height: 1.0;
+    letter-spacing: -0.018em;
+    margin: 0 0 24px 0;
+    text-wrap: balance;
+  }
+  .hero__title em { font-style: italic; font-weight: 500; color: var(--gilt); }
+  .hero__tagline {
+    font-size: 17px;
+    color: var(--sage);
+    line-height: 1.6;
+    max-width: 470px;
+    margin: 0 0 32px 0;
+  }
+  .hero__meta {
+    display: flex;
+    gap: 28px;
+    color: var(--sage-mute);
+    font-size: 11px;
+    letter-spacing: var(--track-tight);
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-weight: 700;
+  }
+  .hero__meta strong { color: var(--bone); font-weight: 700; }
+  .hero__ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+  .hero__image {
+    position: relative;
+    grid-column: 2 / 3;
+    overflow: hidden;
+  }
+  .hero__image::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--ink) 0%, rgba(10,35,24,0.4) 22%, rgba(10,35,24,0) 60%);
+    pointer-events: none;
+  }
+  .hero__badge-tape {
+    position: absolute;
+    right: 32px;
+    bottom: 32px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    color: var(--bone);
+    font-size: 10px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    text-align: right;
+    font-weight: 700;
+  }
+  .hero__badge-tape span { display: block; color: var(--sage-mute); }
+  .hero__badge-tape strong { font-family: var(--font-display); font-style: italic; font-size: 22px; letter-spacing: 0; font-weight: 500; text-transform: none; color: var(--bone); }
+
+  /* ── Instructor rail ─────────────────────────────────────────────────── */
+  .rail-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 40px;
+  }
+  .rail-heading h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(34px, 3.6vw, 52px);
+    line-height: 1.05;
+    letter-spacing: -0.018em;
+    margin: 14px 0 0 0;
+    text-wrap: balance;
+    max-width: 640px;
+  }
+  .rail-heading h2 em { font-style: italic; color: var(--gilt); }
+  .rail {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(300px, 340px);
+    gap: 20px;
+    overflow-x: auto;
+    padding-bottom: 20px;
+    scroll-snap-type: x mandatory;
+    scrollbar-color: var(--rule-strong) transparent;
+    scrollbar-width: thin;
+  }
+  .instructor-card {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    scroll-snap-align: start;
+    background: var(--slate);
+    isolation: isolate;
+    border-left: var(--accent-bar) solid var(--gilt);
+  }
+  .instructor-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 30%, rgba(10,35,24,0.5) 55%, var(--ink) 100%);
+    z-index: 1;
+  }
+  .instructor-card__label {
+    position: absolute;
+    inset: auto 24px 24px;
+    z-index: 2;
+  }
+  .instructor-card__cat {
+    color: var(--sage-mute);
+    font-size: 10px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .instructor-card__name {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px 0;
+  }
+  .instructor-card__teaches { font-size: 13px; color: var(--sage); font-style: italic; font-family: var(--font-display); }
+
+  /* ── Value props ─────────────────────────────────────────────────────── */
+  .value-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+  .value-tile {
+    background: var(--charcoal);
+    padding: 36px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 1px solid var(--rule);
+    border-left: var(--accent-bar) solid var(--gilt);
+  }
+  .value-tile__index {
+    color: var(--gilt);
+    font-family: var(--font-body);
+    font-size: 11px;
+    letter-spacing: var(--track);
+    font-weight: 700;
+  }
+  .value-tile h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 24px;
+    line-height: 1.15;
+    margin: 0;
+    letter-spacing: -0.01em;
+    color: var(--bone);
+    text-wrap: balance;
+  }
+  .value-tile p {
+    font-size: 14px;
+    color: var(--sage);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* ── Course cards ───────────────────────────────────────────────────── */
+  .course-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .course-grid--wide { grid-template-columns: repeat(2, 1fr); gap: 28px; }
+  .course-card {
+    background: var(--charcoal);
+    overflow: hidden;
+    transition: background 150ms ease;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--rule);
+    border-left: var(--accent-bar) solid var(--gilt);
+  }
+  .course-card:hover { background: var(--slate); border-color: var(--rule-strong); }
+  .course-card__poster {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .course-card__poster::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 45%, rgba(10,35,24,0.9));
+    z-index: 1;
+  }
+  .course-card__poster-caption {
+    position: absolute;
+    inset: auto 16px 14px;
+    z-index: 2;
+  }
+  .course-card__cat {
+    font-size: 10px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    color: var(--sage);
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .course-card__by {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--bone);
+    line-height: 1;
+  }
+  .course-card__body { padding: 18px 20px 22px; }
+  .course-card__title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px 0;
+  }
+  .course-card__meta { font-size: 13px; color: var(--sage); font-family: var(--font-body); }
+
+  /* ── Category chips (browse) ─────────────────────────────────────────── */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 40px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    height: 38px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--sage);
+    border: 1px solid var(--rule);
+    background: transparent;
+    text-transform: uppercase;
+    letter-spacing: var(--track-tight);
+    font-weight: 700;
+    transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  }
+  .chip:hover { color: var(--bone); border-color: var(--rule-strong); }
+  .chip.is-active { color: var(--gilt); background: rgba(201, 165, 90, 0.08); border-color: var(--gilt); }
+
+  /* ── COURSE DETAIL ───────────────────────────────────────────────────── */
+  .course-hero {
+    position: relative;
+    min-height: 620px;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+    padding-bottom: 72px;
+    isolation: isolate;
+    background: var(--charcoal);
+  }
+  .course-hero__watermark {
+    position: absolute;
+    right: -100px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 640px; height: 640px;
+    opacity: 0.05;
+    color: var(--gilt);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .course-hero__inner {
+    position: relative;
+    z-index: 2;
+    max-width: var(--page);
+    margin: 0 auto;
+    padding: 0 var(--gutter);
+    width: 100%;
+  }
+  .course-hero__eyebrow { margin-bottom: 16px; }
+  .course-hero__byline {
+    font-family: var(--font-display);
+    font-style: italic;
+    color: var(--gilt);
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    margin-bottom: 14px;
+  }
+  .course-hero__title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(48px, 5.6vw, 88px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin: 0 0 20px 0;
+    max-width: 900px;
+    text-wrap: balance;
+  }
+  .course-hero__title em { font-style: italic; color: var(--gilt); }
+  .course-hero__tagline {
+    font-size: 19px;
+    color: var(--sage);
+    max-width: 640px;
+    margin: 0 0 28px 0;
+    line-height: 1.5;
+  }
+  .course-hero__meta {
+    display: flex;
+    gap: 28px;
+    font-size: 11px;
+    letter-spacing: var(--track-tight);
+    text-transform: uppercase;
+    color: var(--sage-mute);
+    margin-bottom: 28px;
+    font-weight: 700;
+  }
+  .course-hero__meta strong { color: var(--bone); font-weight: 700; }
+  .course-hero__ctas { display: flex; gap: 12px; }
+
+  .course-body {
+    max-width: var(--page);
+    margin: 0 auto;
+    padding: 72px var(--gutter) 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 72px;
+  }
+  .course-body__section { margin-bottom: 56px; }
+  .course-body__section:last-child { margin-bottom: 0; }
+  .section-title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 34px;
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+    margin: 0 0 24px 0;
+  }
+  .section-title em { font-style: italic; color: var(--gilt); }
+  .about-text {
+    font-size: 17px;
+    line-height: 1.7;
+    color: var(--sage);
+    max-width: 68ch;
+  }
+
+  /* Lesson list */
+  .lesson-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--rule);
+    border-left: var(--accent-bar) solid var(--gilt);
+    overflow: hidden;
+  }
+  .lesson {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 20px;
+    align-items: center;
+    padding: 20px 24px;
+    background: var(--charcoal);
+    border-bottom: 1px solid var(--rule);
+    transition: background 120ms ease;
+  }
+  .lesson:last-child { border-bottom: 0; }
+  .lesson:hover { background: var(--slate); }
+  .lesson.is-current { background: var(--slate); }
+  .lesson__badge {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(201, 165, 90, 0.08);
+    display: grid; place-items: center;
+    color: var(--sage-mute);
+    border: 1px solid var(--rule);
+  }
+  .lesson.is-playable .lesson__badge {
+    background: var(--gilt);
+    color: var(--on-gilt);
+    border-color: var(--gilt);
+  }
+  .lesson__label {
+    font-size: 10px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    color: var(--sage-mute);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+    font-weight: 700;
+  }
+  .lesson__free {
+    color: var(--gilt);
+    font-weight: 700;
+    background: rgba(201, 165, 90, 0.14);
+    padding: 3px 8px;
+    letter-spacing: var(--track-tight);
+  }
+  .lesson__title { font-size: 16px; color: var(--bone); margin: 0; font-weight: 500; font-family: var(--font-display); font-size: 18px; }
+  .lesson__desc { font-size: 13px; color: var(--sage); margin: 4px 0 0 0; line-height: 1.5; }
+  .lesson__runtime {
+    font-size: 12px;
+    color: var(--sage);
+    font-variant-numeric: tabular-nums lining-nums;
+    letter-spacing: var(--track-tight);
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  /* Sidebar: instructor */
+  .instructor-panel {
+    background: var(--charcoal);
+    border: 1px solid var(--rule);
+    border-left: var(--accent-bar) solid var(--gilt);
+    padding: 28px;
+    position: sticky;
+    top: 140px;
+  }
+  .instructor-panel__eyebrow { margin-bottom: 20px; }
+  .instructor-panel__row {
+    display: flex; gap: 16px; align-items: center;
+    margin-bottom: 20px;
+  }
+  .instructor-panel__avatar {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--slate);
+    flex-shrink: 0;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--gilt), var(--gilt-active));
+    color: var(--on-gilt);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 22px;
+  }
+  .instructor-panel__name {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.1;
+    margin: 0;
+  }
+  .instructor-panel__headline { font-size: 13px; color: var(--sage); line-height: 1.4; font-style: italic; font-family: var(--font-display); }
+  .instructor-panel__bio { font-size: 14px; color: var(--sage); line-height: 1.65; margin: 0; }
+
+  /* ── WATCH SCREEN ────────────────────────────────────────────────────── */
+  .watch-bar {
+    padding: 16px var(--gutter);
+    max-width: var(--page);
+    margin: 0 auto;
+    border-bottom: 1px solid var(--rule);
+    color: var(--sage);
+    font-size: 13px;
+    font-family: var(--font-display);
+    font-style: italic;
+  }
+  .watch-bar a { display: inline-flex; align-items: center; gap: 8px; }
+  .watch-bar a:hover { color: var(--gilt); }
+  .watch-frame {
+    max-width: var(--page);
+    margin: 24px auto 0;
+    padding: 0 var(--gutter);
+  }
+  .player {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: var(--ink);
+    overflow: hidden;
+    isolation: isolate;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6);
+    border: 1px solid var(--rule);
+  }
+  .player::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.4) 100%);
+  }
+  .player__play {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    z-index: 3;
+  }
+  .player__play-btn {
+    width: 96px; height: 96px;
+    border-radius: 50%;
+    background: rgba(201, 165, 90, 0.14);
+    backdrop-filter: blur(12px);
+    display: grid; place-items: center;
+    border: 1px solid rgba(201, 165, 90, 0.7);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    transition: transform 150ms ease, background 150ms ease;
+  }
+  .player__play-btn:hover { transform: scale(1.05); background: var(--gilt); border-color: var(--gilt); }
+  .player__play-btn:hover svg { fill: var(--on-gilt); }
+  .player__play-btn svg { fill: var(--gilt); width: 34px; height: 34px; margin-left: 4px; }
+  .player__scrub {
+    position: absolute;
+    left: 24px; right: 24px; bottom: 24px;
+    z-index: 3;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .player__scrub-bar {
+    width: 100%;
+    height: 3px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 999px;
+    position: relative;
+  }
+  .player__scrub-bar::before {
+    content: "";
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 34%;
+    background: var(--gilt);
+    border-radius: 999px;
+  }
+  .player__scrub-bar::after {
+    content: "";
+    position: absolute; left: 34%; top: 50%;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--gilt);
+    transform: translate(-50%, -50%);
+  }
+  .player__scrub-meta {
+    display: flex; justify-content: space-between;
+    color: rgba(255,255,255,0.9);
+    font-size: 11px;
+    letter-spacing: var(--track-tight);
+    font-variant-numeric: tabular-nums;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .watch-content {
+    max-width: var(--page);
+    margin: 40px auto 0;
+    padding: 0 var(--gutter);
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 56px;
+  }
+  .watch-content__eyebrow { margin-bottom: 16px; }
+  .watch-title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(32px, 3.6vw, 54px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0 0 18px 0;
+  }
+  .watch-title em { font-style: italic; color: var(--gilt); }
+  .watch-desc { font-size: 17px; color: var(--sage); line-height: 1.65; max-width: 62ch; }
+
+  .up-next {
+    background: var(--charcoal);
+    border: 1px solid var(--rule);
+    border-left: var(--accent-bar) solid var(--gilt);
+    padding: 24px;
+  }
+  .up-next__eyebrow { margin-bottom: 16px; }
+  .up-next__title { font-family: var(--font-display); font-weight: 500; font-size: 24px; margin: 0 0 20px 0; line-height: 1.15; color: var(--bone); }
+  .up-next__preview {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    margin-bottom: 20px;
+    background: var(--slate);
+    border: 1px solid var(--rule);
+  }
+  .up-next__preview::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,0.6));
+  }
+  .up-next__runtime {
+    position: absolute; right: 12px; bottom: 12px;
+    color: var(--bone);
+    font-size: 11px;
+    letter-spacing: var(--track-tight);
+    background: rgba(10, 35, 24, 0.85);
+    padding: 4px 10px;
+    text-transform: uppercase;
+    font-weight: 700;
+    z-index: 2;
+  }
+
+  /* ── PRICING ─────────────────────────────────────────────────────────── */
+  .pricing {
+    background: var(--charcoal);
+    border-top: 1px solid var(--rule);
+    position: relative;
+    overflow: hidden;
+  }
+  .pricing__watermark {
+    position: absolute;
+    right: -140px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 720px;
+    height: 720px;
+    opacity: 0.04;
+    color: var(--gilt);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .pricing__intro {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+  }
+  .pricing__intro h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(40px, 4.6vw, 68px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 12px 0 20px 0;
+  }
+  .pricing__intro h2 em { font-style: italic; color: var(--gilt); }
+  .pricing__intro p { color: var(--sage); font-size: 17px; max-width: 500px; margin: 0 auto; line-height: 1.6; }
+
+  .plans {
+    max-width: 880px;
+    margin: 56px auto 0;
+    padding: 0 var(--gutter);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    position: relative;
+    z-index: 2;
+  }
+  .plan {
+    background: var(--slate);
+    border: 1px solid var(--rule);
+    border-left: var(--accent-bar) solid var(--gilt);
+    padding: 40px 32px 32px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .plan--featured {
+    border-color: var(--gilt);
+    border-left-color: var(--gilt);
+    background: linear-gradient(180deg, rgba(201, 165, 90, 0.06), transparent 70%), var(--slate);
+  }
+  .plan__pill {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gilt);
+    color: var(--on-gilt);
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 10px;
+    letter-spacing: var(--track-tight);
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .plan__name { font-family: var(--font-display); font-weight: 500; font-size: 26px; margin: 0 0 6px 0; }
+  .plan__for { font-size: 12px; color: var(--sage-mute); text-transform: uppercase; letter-spacing: var(--track-tight); font-weight: 700; margin-bottom: 22px; }
+  .plan__price {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 500;
+    color: var(--bone);
+    line-height: 1;
+  }
+  .plan__price-num { font-size: 68px; letter-spacing: -0.03em; color: var(--gilt); }
+  .plan__price-suffix { font-family: var(--font-body); font-size: 13px; color: var(--sage); }
+  .plan__perks { list-style: none; margin: 32px 0 32px; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+  .plan__perks li {
+    display: flex; gap: 12px;
+    font-size: 14px; color: var(--sage); line-height: 1.5;
+  }
+  .plan__perks svg { flex-shrink: 0; margin-top: 3px; color: var(--gilt); }
+  .plan .btn { width: 100%; margin-top: auto; }
+
+  .pricing__note {
+    max-width: 500px;
+    margin: 40px auto 0;
+    text-align: center;
+    color: var(--sage-mute);
+    font-size: 13px;
+    position: relative;
+    z-index: 2;
+    font-style: italic;
+    font-family: var(--font-display);
+  }
+  .pricing__note code {
+    color: var(--bone);
+    background: var(--ink);
+    padding: 2px 8px;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size: 12.5px;
+    font-style: normal;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Footer ──────────────────────────────────────────────────────────── */
+  .footer {
+    background: var(--accent-bg);
+    border-top: 1px solid var(--rule);
+    color: var(--sage-mute);
+    font-size: 13px;
+    padding-block: 56px 32px;
+  }
+  .footer__grid {
+    max-width: var(--page);
+    margin: 0 auto;
+    padding: 0 var(--gutter);
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 40px;
+  }
+  .footer h4 {
+    color: var(--gilt);
+    font-size: 10px;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    margin: 0 0 16px 0;
+    font-weight: 700;
+  }
+  .footer ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .footer a { color: var(--sage); }
+  .footer a:hover { color: var(--gilt); }
+  .footer__intro { max-width: 34ch; }
+  .footer__intro p { margin: 16px 0 0; line-height: 1.6; color: var(--sage); }
+  .footer__bottom {
+    max-width: var(--page);
+    margin: 40px auto 0;
+    padding: 24px var(--gutter) 0;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    color: var(--sage-mute);
+    font-size: 12px;
+  }
+  .footer__bottom a { color: var(--sage); border-bottom: 1px solid var(--rule-strong); padding-bottom: 1px; }
+  .footer__bottom a:hover { color: var(--gilt); }
+
+  /* ── Placeholder mode for images (until real photography uploads) ───── */
+  .hero__image,
+  .instructor-card,
+  .course-card__poster,
+  .up-next__preview,
+  .course-hero {
+    background-color: var(--slate);
+  }
+  .hero__image {
+    background-image:
+      radial-gradient(ellipse at 30% 45%, rgba(201, 165, 90, 0.24), transparent 62%),
+      linear-gradient(160deg, var(--slate) 0%, var(--ink) 80%);
+  }
+  .instructor-card {
+    background-image: linear-gradient(165deg, rgba(201, 165, 90, 0.14) 0%, var(--charcoal) 65%);
+  }
+  .course-card__poster {
+    background-image: linear-gradient(160deg, rgba(201, 165, 90, 0.10) 0%, var(--charcoal) 70%);
+  }
+  .up-next__preview {
+    background-image: linear-gradient(160deg, rgba(201, 165, 90, 0.10), var(--charcoal));
+  }
+  .course-hero {
+    background:
+      radial-gradient(ellipse at 22% 55%, rgba(201, 165, 90, 0.18), transparent 65%),
+      linear-gradient(180deg, var(--charcoal), var(--ink));
+  }
+  .hero__image::before,
+  .instructor-card::before,
+  .course-card__poster::before,
+  .up-next__preview::before,
+  .course-hero .course-hero__inner::before {
+    content: attr(data-ph);
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    color: rgba(201, 165, 90, 0.35);
+    z-index: 3;
+    pointer-events: none;
+  }
+  .course-hero__inner::before { top: 32px; left: 0; }
+
+  /* ── Responsive ──────────────────────────────────────────────────────── */
+  @media (max-width: 1024px) {
+    :root { --gutter: 24px; }
+    .site-nav { display: none; }
+    .value-grid { grid-template-columns: repeat(2, 1fr); }
+    .course-grid { grid-template-columns: repeat(2, 1fr); }
+    .course-grid--wide { grid-template-columns: 1fr; }
+    .course-body, .watch-content { grid-template-columns: 1fr; gap: 40px; }
+    .instructor-panel { position: static; }
+    .footer__grid { grid-template-columns: 1fr 1fr; }
+    .hero__watermark { display: none; }
+  }
+  @media (max-width: 720px) {
+    :root { --gutter: 20px; }
+    .hero {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+    .hero__text {
+      padding: 40px var(--gutter) 48px;
+      order: 2;
+    }
+    .hero__image {
+      grid-column: 1;
+      aspect-ratio: 4 / 3;
+      position: relative;
+      order: 1;
+    }
+    .hero__image::after {
+      background: linear-gradient(180deg, transparent 50%, var(--ink));
+    }
+    .hero__badge-tape { display: none; }
+    .value-grid { grid-template-columns: 1fr; }
+    .course-grid { grid-template-columns: 1fr; }
+    .plans { grid-template-columns: 1fr; }
+    .footer__grid { grid-template-columns: 1fr 1fr; }
+    .footer__bottom { flex-direction: column; gap: 12px; }
+    .screen { padding-block: 64px; }
+    .preview-strip__inner { flex-wrap: wrap; gap: 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  :focus-visible {
+    outline: 2px solid var(--gilt);
+    outline-offset: 3px;
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&display=swap">
+
+<!-- Reusable P icon (used in header, watermarks, favicon) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <defs>
+    <symbol id="p-mark" viewBox="0 0 200 240">
+      <!-- Serif P with a horizontal tapered swash beneath it.
+           Traced to approximate the PastorCast P icon mark. -->
+      <path d="M60 20 L60 220 L92 220 L92 148 L120 148 C158 148 180 128 180 92 C180 55 158 20 120 20 Z M92 44 L118 44 C140 44 152 62 152 84 C152 108 140 124 118 124 L92 124 Z" fill="currentColor"/>
+      <!-- Horizontal swash under the middle of the P -->
+      <path d="M20 138 C 50 132, 78 138, 100 140 C 130 142, 160 138, 190 130 L 188 132 C 158 141, 130 145, 100 143 C 78 141, 50 145, 22 141 Z" fill="currentColor"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ═══════════════════════ PREVIEW STRIP ═══════════════════════ -->
+<div class="preview-strip" role="note">
+  <div class="preview-strip__inner">
+    <span class="preview-strip__label">Static visual preview</span>
+    <span>Buttons and playback are decorative &middot; See the code on <a href="https://github.com/antjuan08/tulsa-1921-data/tree/main/learning-hub" target="_blank" rel="noopener">GitHub</a></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════ SITE HEADER ═══════════════════════ -->
+<header class="site-header">
+  <div class="site-header__inner">
+    <a href="#landing" class="wordmark wordmark--sm" aria-label="PastorCast, home">PASTORCAST</a>
+    <nav class="site-nav">
+      <a href="#landing" class="is-active">Home</a>
+      <a href="#browse">Browse</a>
+      <a href="#course">Preaching</a>
+      <a href="#watch">Watch</a>
+      <a href="#pricing">Pricing</a>
+    </nav>
+    <div class="site-header__auth">
+      <button class="btn btn--ghost">Sign in</button>
+      <button class="btn btn--primary" style="height: 40px; padding: 0 18px; font-size: 11px;">Get started</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ═══════════════════════ SCREEN 01 · LANDING ═══════════════════════ -->
+<section id="landing">
+  <div class="hero">
+    <svg class="hero__watermark" aria-hidden="true"><use href="#p-mark"/></svg>
+    <div class="hero__text">
+      <span class="eyebrow hero__eyebrow">New this season</span>
+      <p class="hero__byline">A course by <strong>Pastor David Kim</strong></p>
+      <h1 class="hero__title">The Preacher's <em>Craft</em>.</h1>
+      <p class="hero__tagline">Exegesis, structure, and delivery — the pastoral craft behind sermons that honor Scripture and speak to the people in front of you.</p>
+      <div class="hero__meta">
+        <span><strong>12</strong>&nbsp;Lessons</span>
+        <span><strong>3h&nbsp;04m</strong>&nbsp;Runtime</span>
+        <span>Preaching</span>
+      </div>
+      <div class="hero__ctas">
+        <a href="#course" class="btn btn--primary btn--lg">
+          <svg class="btn__glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          Watch trailer
+        </a>
+        <a href="#browse" class="btn btn--secondary btn--lg">See all courses</a>
+      </div>
+    </div>
+    <div class="hero__image" aria-hidden="true" data-ph="Hero photograph"></div>
+    <div class="hero__badge-tape" aria-hidden="true">
+      <span>Lead teaching pastor</span>
+      <strong>Grace Community Church</strong>
+    </div>
+  </div>
+
+  <!-- Instructor rail -->
+  <div class="screen" style="padding-top: 96px; padding-bottom: 32px;">
+    <div class="container">
+      <div class="rail-heading">
+        <div>
+          <span class="eyebrow">Featured pastors</span>
+          <h2>Learn from the pastors who <em>shape the church</em>.</h2>
+        </div>
+        <a href="#browse" class="btn btn--ghost" style="height: auto; padding: 0;">See all pastors &rarr;</a>
+      </div>
+      <div class="rail" tabindex="0">
+        <a href="#course" class="instructor-card" data-ph="Instructor portrait">
+          <div class="instructor-card__label">
+            <div class="instructor-card__cat">Preaching</div>
+            <h3 class="instructor-card__name">Pastor David Kim</h3>
+            <div class="instructor-card__teaches">Teaches The Preacher's Craft</div>
+          </div>
+        </a>
+        <a href="#course" class="instructor-card" data-ph="Instructor portrait">
+          <div class="instructor-card__label">
+            <div class="instructor-card__cat">Worship</div>
+            <h3 class="instructor-card__name">Rev. Sarah Thompson</h3>
+            <div class="instructor-card__teaches">Teaches Leading Worship That Matters</div>
+          </div>
+        </a>
+        <a href="#browse" class="instructor-card" data-ph="Coming soon">
+          <div class="instructor-card__label" style="inset: auto 24px 24px; position: absolute;">
+            <div class="instructor-card__cat">Coming this season</div>
+            <h3 class="instructor-card__name" style="color: var(--sage-mute); font-style: italic;">Six more courses</h3>
+            <div class="instructor-card__teaches">Leadership, youth ministry, discipleship, outreach, worship, and more.</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Value props -->
+  <div class="screen" style="padding-top: 48px;">
+    <div class="container">
+      <div style="max-width: 720px; margin-bottom: 56px;">
+        <span class="eyebrow">Why PastorCast</span>
+        <h2 style="font-family: var(--font-display); font-weight: 500; font-size: clamp(36px, 3.8vw, 56px); line-height: 1.05; letter-spacing: -0.02em; margin: 12px 0 0 0;">Train every role. <em style="font-style: italic; color: var(--gilt);">Equip every voice.</em> Stream every story.</h2>
+      </div>
+      <div class="value-grid">
+        <div class="value-tile">
+          <div class="value-tile__index">I · KINGDOM-CENTERED</div>
+          <h3>Built for the local church</h3>
+          <p>Every course honors the calling of ministry — professionally structured, Kingdom-driven, made for the people you serve.</p>
+        </div>
+        <div class="value-tile">
+          <div class="value-tile__index">II · EVERY SCREEN</div>
+          <h3>Cinematic on every device</h3>
+          <p>Watch on the web today. iOS, Android, and Connected TV apps arriving this year.</p>
+        </div>
+        <div class="value-tile">
+          <div class="value-tile__index">III · FINISHABLE</div>
+          <h3>Made to be finished</h3>
+          <p>Short, focused lessons (10–25 min) with downloadable workbooks. Most courses finish in a week.</p>
+        </div>
+        <div class="value-tile">
+          <div class="value-tile__index">IV · ALWAYS GROWING</div>
+          <h3>New courses every month</h3>
+          <p>One subscription, the whole library, plus first access to every new release.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- New courses grid -->
+  <div class="screen">
+    <div class="container">
+      <div class="rail-heading">
+        <div>
+          <span class="eyebrow">This season's release</span>
+          <h2>New courses</h2>
+        </div>
+        <a href="#browse" class="btn btn--ghost" style="height: auto; padding: 0;">See all &rarr;</a>
+      </div>
+      <div class="course-grid course-grid--wide">
+        <a href="#course" class="course-card">
+          <div class="course-card__poster" data-ph="Course poster">
+            <div class="course-card__poster-caption">
+              <div class="course-card__cat">Preaching</div>
+              <div class="course-card__by">Pastor David Kim</div>
+            </div>
+          </div>
+          <div class="course-card__body">
+            <h3 class="course-card__title">The Preacher's Craft</h3>
+            <p class="course-card__meta">4 lessons · 3h 04m · Released this week</p>
+          </div>
+        </a>
+        <a href="#course" class="course-card">
+          <div class="course-card__poster" data-ph="Course poster">
+            <div class="course-card__poster-caption">
+              <div class="course-card__cat">Worship</div>
+              <div class="course-card__by">Rev. Sarah Thompson</div>
+            </div>
+          </div>
+          <div class="course-card__body">
+            <h3 class="course-card__title">Leading Worship That Matters</h3>
+            <p class="course-card__meta">4 lessons · 2h 32m · Released this week</p>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ SCREEN 02 · BROWSE ═══════════════════════ -->
+<section id="browse" class="screen" style="background: var(--charcoal); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);">
+  <div class="screen__marker"><strong>Screen 02</strong><span>· Browse the catalog</span></div>
+  <div class="container">
+    <div style="max-width: 720px; margin-bottom: 40px;">
+      <span class="eyebrow">The catalog</span>
+      <h2 style="font-family: var(--font-display); font-weight: 500; font-size: clamp(40px, 5vw, 76px); line-height: 1.02; letter-spacing: -0.025em; margin: 12px 0 20px 0;">All courses</h2>
+      <p style="font-size: 17px; color: var(--sage); margin: 0; max-width: 60ch; line-height: 1.6;">Browse every course, podcast, and mini-doc on PastorCast. Filter by ministry area or scroll through the full library.</p>
+    </div>
+    <div class="chips" role="tablist" aria-label="Categories">
+      <button class="chip is-active">All</button>
+      <button class="chip">Preaching</button>
+      <button class="chip">Worship</button>
+      <button class="chip">Leadership <span style="color: var(--sage-mute); margin-left: 8px; font-weight: 400;">soon</span></button>
+      <button class="chip">Discipleship <span style="color: var(--sage-mute); margin-left: 8px; font-weight: 400;">soon</span></button>
+      <button class="chip">Youth ministry <span style="color: var(--sage-mute); margin-left: 8px; font-weight: 400;">soon</span></button>
+      <button class="chip">Outreach <span style="color: var(--sage-mute); margin-left: 8px; font-weight: 400;">soon</span></button>
+    </div>
+    <div class="course-grid">
+      <a href="#course" class="course-card">
+        <div class="course-card__poster" data-ph="Course poster">
+          <div class="course-card__poster-caption">
+            <div class="course-card__cat">Preaching</div>
+            <div class="course-card__by">Pastor David Kim</div>
+          </div>
+        </div>
+        <div class="course-card__body">
+          <h3 class="course-card__title">The Preacher's Craft</h3>
+          <p class="course-card__meta">4 lessons · 3h 04m</p>
+        </div>
+      </a>
+      <a href="#course" class="course-card">
+        <div class="course-card__poster" data-ph="Course poster">
+          <div class="course-card__poster-caption">
+            <div class="course-card__cat">Worship</div>
+            <div class="course-card__by">Rev. Sarah Thompson</div>
+          </div>
+        </div>
+        <div class="course-card__body">
+          <h3 class="course-card__title">Leading Worship That Matters</h3>
+          <p class="course-card__meta">4 lessons · 2h 32m</p>
+        </div>
+      </a>
+      <div class="course-card" style="opacity: 0.55; background: transparent; border: 1px dashed var(--rule); border-left: var(--accent-bar) dashed var(--sage-mute);" aria-hidden="true">
+        <div class="course-card__poster" style="background: var(--charcoal);">
+          <div class="course-card__poster-caption" style="inset: auto 16px 14px;">
+            <div class="course-card__cat">Coming soon</div>
+            <div class="course-card__by" style="font-style: italic;">Discipleship</div>
+          </div>
+        </div>
+        <div class="course-card__body">
+          <h3 class="course-card__title" style="color: var(--sage-mute);">Untitled course</h3>
+          <p class="course-card__meta">Fall release</p>
+        </div>
+      </div>
+      <div class="course-card" style="opacity: 0.55; background: transparent; border: 1px dashed var(--rule); border-left: var(--accent-bar) dashed var(--sage-mute);" aria-hidden="true">
+        <div class="course-card__poster" style="background: var(--charcoal);">
+          <div class="course-card__poster-caption" style="inset: auto 16px 14px;">
+            <div class="course-card__cat">Coming soon</div>
+            <div class="course-card__by" style="font-style: italic;">Leadership</div>
+          </div>
+        </div>
+        <div class="course-card__body">
+          <h3 class="course-card__title" style="color: var(--sage-mute);">Untitled course</h3>
+          <p class="course-card__meta">Fall release</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ SCREEN 03 · COURSE DETAIL ═══════════════════════ -->
+<section id="course">
+  <div class="screen__marker" style="padding-top: 96px;"><strong>Screen 03</strong><span>· Course detail</span></div>
+  <div class="course-hero">
+    <svg class="course-hero__watermark" aria-hidden="true"><use href="#p-mark"/></svg>
+    <div class="course-hero__inner" data-ph="Course hero photograph">
+      <div class="course-hero__eyebrow"><span class="eyebrow">Preaching</span></div>
+      <p class="course-hero__byline">A course by Pastor David Kim</p>
+      <h1 class="course-hero__title">The Preacher's <em>Craft</em>.</h1>
+      <p class="course-hero__tagline">Exegesis, structure, and delivery — the pastoral craft behind sermons that honor Scripture and speak to the people in front of you.</p>
+      <div class="course-hero__meta">
+        <span><strong>4</strong>&nbsp;Lessons</span>
+        <span><strong>3h&nbsp;04m</strong>&nbsp;Runtime</span>
+        <span style="color: var(--gilt);">★&nbsp;<strong style="color: var(--bone);">4.9</strong> (2.1k)</span>
+      </div>
+      <div class="course-hero__ctas">
+        <a href="#watch" class="btn btn--primary btn--lg">
+          <svg class="btn__glyph" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          Watch free preview
+        </a>
+        <a href="#pricing" class="btn btn--secondary btn--lg">Subscribe</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="course-body">
+    <div>
+      <div class="course-body__section">
+        <h2 class="section-title">About this <em>course</em></h2>
+        <p class="about-text">Across 12 lessons, David deconstructs the craft of preaching sermons that honor Scripture and speak to the people in front of you — from meeting the text on its own terms, to building a sermon that lands, to standing in front of a congregation with clarity and pastoral weight. You'll leave with a sermon-preparation practice, not a checklist.</p>
+      </div>
+      <div class="course-body__section">
+        <h2 class="section-title">Lessons</h2>
+        <ol class="lesson-list">
+          <li class="lesson is-playable is-current">
+            <div class="lesson__badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+            <div>
+              <div class="lesson__label">
+                <span>Lesson 01</span>
+                <span class="lesson__free">Free preview</span>
+              </div>
+              <p class="lesson__title">Introduction: The Weight of the Word</p>
+              <p class="lesson__desc">What it means to preach the Word, and why the way we prepare has to answer to that weight first.</p>
+            </div>
+            <div class="lesson__runtime">12 min</div>
+          </li>
+          <li class="lesson">
+            <div class="lesson__badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z"/></svg>
+            </div>
+            <div>
+              <div class="lesson__label"><span>Lesson 02</span></div>
+              <p class="lesson__title">Exegesis: Meeting the Text on Its Terms</p>
+              <p class="lesson__desc">A working method for sitting with a passage before you ever start writing.</p>
+            </div>
+            <div class="lesson__runtime">24 min</div>
+          </li>
+          <li class="lesson">
+            <div class="lesson__badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z"/></svg>
+            </div>
+            <div>
+              <div class="lesson__label"><span>Lesson 03</span></div>
+              <p class="lesson__title">Structure: Building a Sermon That Lands</p>
+              <p class="lesson__desc">Frameworks that get out of the way of the message, and when to break them.</p>
+            </div>
+            <div class="lesson__runtime">31 min</div>
+          </li>
+          <li class="lesson">
+            <div class="lesson__badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h-1V6a5 5 0 0 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z"/></svg>
+            </div>
+            <div>
+              <div class="lesson__label"><span>Lesson 04</span></div>
+              <p class="lesson__title">Delivery: Voice, Pause, and Presence</p>
+              <p class="lesson__desc">Standing in the pulpit as a pastor first, a speaker second.</p>
+            </div>
+            <div class="lesson__runtime">28 min</div>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <aside>
+      <div class="instructor-panel">
+        <div class="instructor-panel__eyebrow"><span class="eyebrow">Your instructor</span></div>
+        <div class="instructor-panel__row">
+          <div class="instructor-panel__avatar" aria-hidden="true">DK</div>
+          <div>
+            <h3 class="instructor-panel__name">Pastor David Kim</h3>
+            <p class="instructor-panel__headline">Lead teaching pastor · Grace Community Church</p>
+          </div>
+        </div>
+        <p class="instructor-panel__bio">David Kim has served as the lead teaching pastor at Grace Community Church for fifteen years. In this class, he opens the sermon-preparation practice he built through a decade of pulpit ministry — from meeting the text to standing in front of a congregation.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ═══════════════════════ SCREEN 04 · WATCH ═══════════════════════ -->
+<section id="watch" style="padding-top: 96px; padding-bottom: 96px;">
+  <div class="screen__marker"><strong>Screen 04</strong><span>· Watch a lesson</span></div>
+  <div class="watch-bar">
+    <a href="#course">← Back to The Preacher's Craft</a>
+  </div>
+  <div class="watch-frame">
+    <div class="player">
+      <div class="player__play">
+        <button class="player__play-btn" aria-label="Play">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+      </div>
+      <div class="player__scrub" aria-hidden="true">
+        <div class="player__scrub-bar"></div>
+        <div class="player__scrub-meta">
+          <span>04:12</span>
+          <span>12:00</span>
+        </div>
+      </div>
+    </div>
+    <div class="watch-content">
+      <div>
+        <div class="watch-content__eyebrow"><span class="eyebrow">Lesson 01 · The Preacher's Craft</span></div>
+        <h1 class="watch-title">The Weight of the <em>Word</em></h1>
+        <p class="watch-desc">David opens the course with a single question: what does it mean to preach the Word? This lesson unpacks the theological weight preachers carry, and why the way we prepare sermons has to answer to that weight first — before craft, before structure, before delivery.</p>
+      </div>
+      <div class="up-next">
+        <div class="up-next__eyebrow"><span class="eyebrow">Up next</span></div>
+        <div class="up-next__preview" data-ph="Next lesson still">
+          <span class="up-next__runtime">24 min</span>
+        </div>
+        <h3 class="up-next__title">Exegesis: Meeting the Text on Its Terms</h3>
+        <a href="#watch" class="btn btn--primary" style="width: 100%;">
+          Play next lesson
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ SCREEN 05 · PRICING ═══════════════════════ -->
+<section id="pricing" class="pricing" style="padding-block: 96px;">
+  <svg class="pricing__watermark" aria-hidden="true"><use href="#p-mark"/></svg>
+  <div class="screen__marker" style="margin-bottom: 40px; position: relative; z-index: 2;"><strong>Screen 05</strong><span>· Membership</span></div>
+  <div class="pricing__intro">
+    <span class="eyebrow">Membership</span>
+    <h2>One subscription. <em>Equip every seat.</em></h2>
+    <p>Watch unlimited courses from experienced pastors and worship leaders, on the web today and on Connected TV soon. Cancel anytime.</p>
+  </div>
+  <div class="plans">
+    <div class="plan">
+      <h3 class="plan__name">Individual</h3>
+      <div class="plan__for">For pastors &amp; staff</div>
+      <div class="plan__price">
+        <span class="plan__price-num">$9</span>
+        <span class="plan__price-suffix">/ month</span>
+      </div>
+      <ul class="plan__perks">
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>All current and future courses</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Watch on web and TV</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Cancel anytime</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>New courses every month</li>
+      </ul>
+      <button class="btn btn--secondary">Start individual</button>
+    </div>
+    <div class="plan plan--featured">
+      <span class="plan__pill">Best for churches</span>
+      <h3 class="plan__name">Church</h3>
+      <div class="plan__for">For teams &amp; volunteers</div>
+      <div class="plan__price">
+        <span class="plan__price-num">$79</span>
+        <span class="plan__price-suffix">/ month, per church</span>
+      </div>
+      <ul class="plan__perks">
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Everything in Individual</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Up to 25 staff &amp; volunteer seats</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Team progress &amp; analytics</li>
+        <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Priority support</li>
+      </ul>
+      <button class="btn btn--primary">Start church plan</button>
+    </div>
+  </div>
+  <p class="pricing__note">Networks — <a href="#" style="color: var(--gilt); font-style: normal; border-bottom: 1px solid var(--gilt); padding-bottom: 1px;">talk to us about custom pricing</a>. Or in the app: test with <code>4242 4242 4242 4242</code>.</p>
+</section>
+
+</main>
+
+<!-- ═══════════════════════ FOOTER ═══════════════════════ -->
+<footer class="footer">
+  <div class="footer__grid">
+    <div class="footer__intro">
+      <a href="#landing" class="wordmark wordmark--sm" style="font-size: 14px; letter-spacing: 0.36em;">PASTORCAST</a>
+      <p>Train every role. Equip every voice. Stream every story. Premium leadership training and streaming for the local church.</p>
+    </div>
+    <div>
+      <h4>Watch</h4>
+      <ul>
+        <li><a href="#browse">All courses</a></li>
+        <li><a href="#browse">Preaching</a></li>
+        <li><a href="#browse">Worship</a></li>
+        <li><a href="#browse">Leadership</a></li>
+      </ul>
+    </div>
+    <div>
+      <h4>Account</h4>
+      <ul>
+        <li><a href="#pricing">Pricing</a></li>
+        <li>Subscription</li>
+        <li>Sign in</li>
+        <li>Church admin</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Apps</h4>
+      <ul>
+        <li>Web</li>
+        <li>iOS <span style="color: var(--sage-mute); font-style: italic;">soon</span></li>
+        <li>Android <span style="color: var(--sage-mute); font-style: italic;">soon</span></li>
+        <li>Connected TV <span style="color: var(--sage-mute); font-style: italic;">soon</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    <span>© 2026 PastorCast — a static preview.</span>
+    <span>pastorcast.com · <a href="https://github.com/antjuan08/tulsa-1921-data/tree/main/learning-hub" target="_blank" rel="noopener">Source code</a></span>
+  </div>
+</footer>
+
+<script>
+  // Smooth-scroll on in-page anchors, and light up the current section in the nav.
+  (function () {
+    var nav = document.querySelectorAll('.site-nav a');
+    document.querySelectorAll('a[href^="#"]').forEach(function (a) {
+      a.addEventListener('click', function (e) {
+        var id = a.getAttribute('href').slice(1);
+        var target = document.getElementById(id);
+        if (!target) return;
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      });
+    });
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          var id = e.target.id;
+          nav.forEach(function (a) {
+            a.classList.toggle('is-active', a.getAttribute('href') === '#' + id);
+          });
+        });
+      }, { rootMargin: '-40% 0px -55% 0px' });
+      document.querySelectorAll('main > section[id]').forEach(function (s) { io.observe(s); });
+    }
+  })();
+</script>
